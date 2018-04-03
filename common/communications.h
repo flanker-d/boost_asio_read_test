@@ -41,7 +41,7 @@ namespace common
         virtual void do_accept() = 0;
     };
 
-    iserver::ref create_server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type);
+    iserver::ref create_server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type, bool a_use_strand);
 
     class iclient_session
       : public interface<iclient_session>
@@ -52,7 +52,12 @@ namespace common
         virtual void shutdown() = 0;
     };
 
-    iclient_session::ref create_client_session(boost::asio::ip::tcp::socket& a_sock, boost::asio::io_service::strand& a_strand, iserver::ref a_server, do_read_type_e a_type);
+    iclient_session::ref create_client_session(boost::asio::ip::tcp::socket& a_sock
+      , boost::asio::io_service::strand& a_strand
+      , iserver::ref a_server
+      , do_read_type_e a_type
+      , bool a_use_strand
+    );
 
     class iclient
       : public interface<iclient>

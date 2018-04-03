@@ -11,7 +11,7 @@ namespace common
      , public std::enable_shared_from_this<iserver>
     {
       public:
-        server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type);
+        server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type, bool a_use_strand);
         void run() override;
         void remove_client(const int a_client_id) override;
         void set_on_connected(std::function<void(const int)> a_on_connected) override;
@@ -32,17 +32,19 @@ namespace common
         boost::asio::ip::tcp::acceptor m_acceptor;
         std::unordered_map<int, iclient_session::ref> m_clients;
         do_read_type_e m_do_read_type;
+        bool m_use_strand = false;
 
         std::function<void(const int)> m_on_connected_func;
         std::function<void(const int)> m_on_disconnected_func;
         std::function<void(const int, const char *, std::size_t)> m_on_message_func;
     };
 
-    server::server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type)
+    server::server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type, bool a_use_strand)
      : m_strand(a_strand)
      , m_listener(a_strand.get_io_service())
      , m_acceptor(a_strand.get_io_service(), boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), a_port))
      , m_do_read_type(a_type)
+     , m_use_strand(a_use_strand)
     {
     }
 
@@ -110,18 +112,37 @@ namespace common
 
     void server::do_accept()
     {
-      m_acceptor.async_accept(m_listener, m_strand.wrap([this](boost::system::error_code a_ec)
+      if(m_use_strand)
       {
-        if(!a_ec)
+        m_acceptor.async_accept(m_listener, m_strand.wrap([this](boost::system::error_code a_ec)
         {
-          int client_id = m_listener.native_handle();
-          auto new_client = common::tcp::create_client_session(m_listener, m_strand, shared_from_this(), m_do_read_type);
-          m_clients.insert(std::make_pair(client_id, new_client));
-          new_client->start();
-          on_connected(client_id);
-        }
-        do_accept();
-      }));
+          if(!a_ec)
+          {
+            int client_id = m_listener.native_handle();
+            auto new_client = common::tcp::create_client_session(m_listener, m_strand, shared_from_this(), m_do_read_type, m_use_strand);
+            m_clients.insert(std::make_pair(client_id, new_client));
+            new_client->start();
+            on_connected(client_id);
+          }
+          do_accept();
+        }));
+      }
+      else
+      {
+        m_acceptor.async_accept(m_listener, [this](boost::system::error_code a_ec)
+        {
+          if(!a_ec)
+          {
+            int client_id = m_listener.native_handle();
+            auto new_client = common::tcp::create_client_session(m_listener, m_strand, shared_from_this(), m_do_read_type, m_use_strand);
+            m_clients.insert(std::make_pair(client_id, new_client));
+            new_client->start();
+            on_connected(client_id);
+          }
+          do_accept();
+        });
+      }
+
     }
 
   } //namespace tcp
@@ -131,9 +152,9 @@ namespace common
 {
   namespace tcp
   {
-    iserver::ref create_server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type)
+    iserver::ref create_server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type, bool a_use_strand)
     {
-      return std::make_shared<server>(a_port, a_strand, a_type);
+      return std::make_shared<server>(a_port, a_strand, a_type, a_use_strand);
     }
   } //namespace tcp
 } //namespace common

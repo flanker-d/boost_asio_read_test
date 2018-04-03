@@ -12,7 +12,12 @@ namespace common
      : public iclient_session
     {
       public:
-        client_session(boost::asio::ip::tcp::socket& a_sock, boost::asio::io_service::strand& a_strand, iserver::ref& a_server, do_read_type_e a_type);
+        client_session(boost::asio::ip::tcp::socket& a_sock
+          , boost::asio::io_service::strand& a_strand
+          , iserver::ref& a_server
+          , do_read_type_e a_type
+          , bool a_use_strand
+        );
         ~client_session() override;
         void send_message(const std::string& a_data) override;
         void start() override;
@@ -30,6 +35,7 @@ namespace common
         iserver::weak_ref m_server;
         int m_client_id;
         pbuf_t m_buffer;
+        bool m_use_strand = false;
         boost::asio::streambuf m_streambuf;
         std::function<void()> m_do_receive_func;
         decltype(std::chrono::high_resolution_clock::now()) m_start_time;
@@ -37,12 +43,18 @@ namespace common
 
     };
 
-    client_session::client_session(boost::asio::ip::tcp::socket& a_sock, boost::asio::io_service::strand& a_strand, iserver::ref& a_server, do_read_type_e a_type)
+    client_session::client_session(boost::asio::ip::tcp::socket& a_sock
+      , boost::asio::io_service::strand& a_strand
+      , iserver::ref& a_server
+      , do_read_type_e a_type
+      , bool a_use_strand
+    )
      : m_strand(a_strand)
      , m_sock(std::move(a_sock))
      , m_server(a_server)
      , m_client_id(m_sock.native_handle())
      , m_buffer(std::make_unique<buf_t>())
+     , m_use_strand(a_use_strand)
     {
       switch (a_type)
       {
@@ -74,7 +86,11 @@ namespace common
       {
         //std::cout << to_send_str;
       };
-      boost::asio::async_write(m_sock, boost::asio::buffer(a_data.c_str(), a_data.length()), m_strand.wrap(async_write_handler));
+      if(m_use_strand)
+        boost::asio::async_write(m_sock, boost::asio::buffer(a_data.c_str(), a_data.length()), m_strand.wrap(async_write_handler));
+      else
+        boost::asio::async_write(m_sock, boost::asio::buffer(a_data.c_str(), a_data.length()), async_write_handler);
+
     }
 
     void client_session::start()
@@ -93,7 +109,7 @@ namespace common
     {
       m_counter++;
 
-      if(m_counter == 999999)
+      if(m_counter == 99999)
       {
         auto finish_time = std::chrono::high_resolution_clock::now();
         std::cout << std::chrono::duration_cast<milli>(finish_time - m_start_time).count() << std::endl;
@@ -144,8 +160,11 @@ namespace common
             }
           }
         };
-      
-        boost::asio::async_read(m_sock, boost::asio::buffer(m_buffer->data(), BUF_LENGTH), async_read_completion_handler, m_strand.wrap(async_read_handler));
+
+        if(m_use_strand)
+          boost::asio::async_read(m_sock, boost::asio::buffer(m_buffer->data(), BUF_LENGTH), async_read_completion_handler, m_strand.wrap(async_read_handler));
+        else
+          boost::asio::async_read(m_sock, boost::asio::buffer(m_buffer->data(), BUF_LENGTH), async_read_completion_handler, async_read_handler);
     }
 
     void client_session::do_receive_custom_eol_std_find()
@@ -190,7 +209,10 @@ namespace common
         }
       };
 
-      boost::asio::async_read(m_sock, boost::asio::buffer(m_buffer->data(), BUF_LENGTH), async_read_completion_handler, m_strand.wrap(async_read_handler));
+      if(m_use_strand)
+        boost::asio::async_read(m_sock, boost::asio::buffer(m_buffer->data(), BUF_LENGTH), async_read_completion_handler, m_strand.wrap(async_read_handler));
+      else
+        boost::asio::async_read(m_sock, boost::asio::buffer(m_buffer->data(), BUF_LENGTH), async_read_completion_handler, async_read_handler);
     }
 
     void client_session::do_receive_read_until_eol()
@@ -228,8 +250,11 @@ namespace common
           }
         }
       };
+      if(m_use_strand)
+        boost::asio::async_read_until(m_sock, m_streambuf, '\n', m_strand.wrap(async_read_handler));
+      else
+        boost::asio::async_read_until(m_sock, m_streambuf, '\n', async_read_handler);
 
-      boost::asio::async_read_until(m_sock, m_streambuf, '\n', m_strand.wrap(async_read_handler));
     }
   } //namespace tcp
 } //namespace common
@@ -238,9 +263,14 @@ namespace common
 {
   namespace tcp
   {
-    iclient_session::ref create_client_session(boost::asio::ip::tcp::socket& a_sock, boost::asio::io_service::strand& a_strand, iserver::ref a_server, do_read_type_e a_type)
+    iclient_session::ref create_client_session(boost::asio::ip::tcp::socket& a_sock
+      , boost::asio::io_service::strand& a_strand
+      , iserver::ref a_server
+      , do_read_type_e a_type
+      , bool a_use_strand
+    )
     {
-      return std::make_shared<client_session>(a_sock, a_strand, a_server, a_type);
+      return std::make_shared<client_session>(a_sock, a_strand, a_server, a_type, a_use_strand);
     }
   } //namespace tcp
 } //namespace common
