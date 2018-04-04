@@ -19,7 +19,7 @@ class server : public common::interface<server>
       });
 
       m_server->set_on_message([](const int client, const char *data, std::size_t len){
-        std::cout << data << std::endl;
+        //std::cout << data << std::endl;
       });
 
       m_server->run();
