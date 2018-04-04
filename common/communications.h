@@ -19,7 +19,14 @@ namespace common
         custom_eol,
         custom_eol_std_find,
         read_until_eol,
-        read_all_and_std_find_eol
+        async_read
+    };
+
+    struct params_t
+    {
+      do_read_type_e do_read_type;
+      bool use_strand;
+      int read_counter;
     };
 
     class iserver
@@ -41,7 +48,7 @@ namespace common
         virtual void do_accept() = 0;
     };
 
-    iserver::ref create_server(const int a_port, boost::asio::io_service::strand& a_strand, do_read_type_e a_type, bool a_use_strand);
+    iserver::ref create_server(const int a_port, boost::asio::io_service& a_io_service, params_t& a_params);
 
     class iclient_session
       : public interface<iclient_session>
@@ -52,12 +59,7 @@ namespace common
         virtual void shutdown() = 0;
     };
 
-    iclient_session::ref create_client_session(boost::asio::ip::tcp::socket& a_sock
-      , boost::asio::io_service::strand& a_strand
-      , iserver::ref a_server
-      , do_read_type_e a_type
-      , bool a_use_strand
-    );
+    iclient_session::ref create_client_session(boost::asio::ip::tcp::socket& a_sock, boost::asio::io_service& a_io_service, iserver::ref a_server, params_t& a_params);
 
     class iclient
       : public interface<iclient>
