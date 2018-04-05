@@ -61,7 +61,7 @@ int main(int argc, char **argv)
   boost::asio::io_service io_service;
 
   params_t params;
-  params.do_read_type = do_read_type_e::read_until_eol;
+  params.do_read_type = read_func_type_e::read_until_eol;
   params.use_strand = false;
   params.read_counter = 999999;
 

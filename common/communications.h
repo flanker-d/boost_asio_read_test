@@ -14,7 +14,7 @@ namespace common
     using buf_t = std::array<char, BUF_LENGTH>;
     using pbuf_t = std::unique_ptr<buf_t>;
 
-    enum class do_read_type_e
+    enum class read_func_type_e
     {
         custom_eol,
         custom_eol_std_find,
@@ -24,7 +24,7 @@ namespace common
 
     struct params_t
     {
-      do_read_type_e do_read_type;
+      read_func_type_e do_read_type;
       bool use_strand;
       int read_counter;
     };

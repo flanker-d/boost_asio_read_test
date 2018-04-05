@@ -51,16 +51,16 @@ namespace common
     {
       switch (m_params.do_read_type)
       {
-        case do_read_type_e::custom_eol:
+        case read_func_type_e::custom_eol:
           m_do_receive_func = std::bind(&client_session::do_receive_custom_eol, this);
           break;
-        case do_read_type_e::custom_eol_std_find:
+        case read_func_type_e::custom_eol_std_find:
           m_do_receive_func = std::bind(&client_session::do_receive_custom_eol_std_find, this);
           break;
-        case do_read_type_e::read_until_eol:
+        case read_func_type_e::read_until_eol:
           m_do_receive_func = std::bind(&client_session::do_receive_read_until_eol, this);
           break;
-        case do_read_type_e::async_read:
+        case read_func_type_e::async_read:
           m_do_receive_func = std::bind(&client_session::do_receive_async_read, this);
           break;
         default:
@@ -211,8 +211,6 @@ namespace common
 
     void client_session::do_receive_read_until_eol()
     {
-      m_buffer->fill(0);
-
       auto async_read_handler = [this](const boost::system::error_code& a_ec, std::size_t a_len)
       {
         if(a_len == 0)
